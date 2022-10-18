@@ -94,7 +94,7 @@ namespace ImageAsynx
                     
                     return Normalize(results.First(v => v.Name == "fc1").AsEnumerable<float>().ToArray());
                 }
-            }, ct);
+            }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
         }        
 
