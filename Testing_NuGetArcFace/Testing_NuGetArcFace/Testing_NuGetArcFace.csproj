@@ -6,10 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ImageAsynx" Version="1.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\ImageAsynx\ImageAsynx\ImageAsynx.csproj" />
   </ItemGroup>
 
