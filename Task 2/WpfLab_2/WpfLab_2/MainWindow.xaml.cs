@@ -29,6 +29,9 @@ namespace WpfLab_2
         private CancellationToken token;
 
         private bool calculations_ended;
+        private bool processing;
+        private object locker;
+
 
         private ArcFace AF;
 
@@ -43,6 +46,8 @@ namespace WpfLab_2
             images = new();
             AF = new();
             calculations_ended = false;
+            processing = false;
+            locker = new object();
         }
 
         private void Load()
@@ -163,13 +168,18 @@ namespace WpfLab_2
                     cell_result.VerticalAlignment = VerticalAlignment.Center;
                     cell_result.FontSize = 12;
 
-                    token.ThrowIfCancellationRequested();
-
-                    float dist = await AF.Distance(list_images[i], list_images[j], token);
-                    float sim = await AF.Similarity(list_images[i], list_images[j], token);
-                    cell_result.Content = $"Distance: {dist * dist}\n Similarity: {sim}";
-                    progress_bar.Value += step2;
-
+                    if (token.IsCancellationRequested)
+                    {
+                        _ = MessageBox.Show("Calculations braked.");
+                        return;
+                    }
+                    else
+                    {
+                        float dist = await AF.Distance(list_images[i], list_images[j], token);
+                        float sim = await AF.Similarity(list_images[i], list_images[j], token);
+                        cell_result.Content = $"Distance: {dist * dist}\n Similarity: {sim}";
+                        progress_bar.Value += step2;
+                    }
                     _ = table.Children.Add(cell_result);
                 }
             }
@@ -180,10 +190,17 @@ namespace WpfLab_2
         }
         private async void Start_calc_ClickAsync()
         {
+            
             List<Task> tasks = new();
             await EmbeddingsMatrixAsync(images, token, tasks);
             await DistSimilMatrixAsync(images, token);
-            calculations_ended = true;
+            if (token.IsCancellationRequested)
+            {
+                calculations_ended = true;
+            }
+            Start_calc.IsEnabled = true;
+            Clear_calc.IsEnabled = true;
+
         }
 
         private void Load_image_Click(object sender, RoutedEventArgs e)
@@ -204,8 +221,10 @@ namespace WpfLab_2
                 _ = MessageBox.Show("You've calculated this data. Choose new one.");
                 return;
             }
+            Start_calc.IsEnabled = false;
+            Clear_calc.IsEnabled = false;
             Start_calc_ClickAsync();
-
+            calculations_ended = false;
         }
         private void Clear_calc_Click(object sender, RoutedEventArgs e)
         {
