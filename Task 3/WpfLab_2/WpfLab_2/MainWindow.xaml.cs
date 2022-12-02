@@ -125,21 +125,7 @@ namespace WpfLab_2
                         var face = SixLabors.ImageSharp.Image.Load<Rgb24>(images_paths[i].Item2);
                         list_images.Add(face);
                         var task1 = AF.GetEmbeddings(face, token);
-                        tasks.Add(task1);
-                        await tasks[i];
-                        using var DB = new DataBase();
-                        var face_info = new Image_Info { Data = images_paths[i].Item1 };
-                        var face_emb = new byte[tasks[i].Result.Length * 4];
-                        Buffer.BlockCopy(tasks[i].Result, 0, face_emb, 0, face_emb.Length);
-                        Image new_face = new()
-                        {
-                            Name = images_paths[i].Item2,
-                            Embedding = face_emb,
-                            Details = face_info,
-                            Hash = Image.GetHash(images_paths[i].Item1)
-                        };
-                        DB.Add(new_face);
-                        DB.SaveChanges();
+                        tasks.Add(task1);                  
                     }
                     else
                     {
@@ -160,7 +146,20 @@ namespace WpfLab_2
             {
                 try
                 {
-                    
+                    await tasks[i];
+                    using var DB = new DataBase();
+                    var face_info = new Image_Info { Data = images_paths[i].Item1 };
+                    var face_emb = new byte[tasks[i].Result.Length * 4];
+                    Buffer.BlockCopy(tasks[i].Result, 0, face_emb, 0, face_emb.Length);
+                    Image new_face = new()
+                    {
+                        Name = images_paths[i].Item2,
+                        Embedding = face_emb,
+                        Details = face_info,
+                        Hash = Image.GetHash(images_paths[i].Item1)
+                    };
+                    DB.Add(new_face);
+                    DB.SaveChanges();
                 }
                 catch (OperationCanceledException e2)
                 {
