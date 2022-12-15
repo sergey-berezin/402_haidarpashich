@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,54 +11,94 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
-using ImageAsynx;
-using Microsoft.EntityFrameworkCore;
+using System.Collections.ObjectModel;
+using System.Net.Http;
+using Newtonsoft.Json;
+using System.Text.Json;
 
-namespace WpfLab_2
+namespace ImageClient
 {
-    public partial class DB_Window : Window
+    /// <summary>
+    /// Логика взаимодействия для WindowDatabasexaml.xaml
+    /// </summary>
+    public partial class WindowDatabasexaml : Window
     {
-        public ObservableCollection<Image> ImagesData { get; private set; }
-        public DB_Window()
+        private readonly string url = "http://localhost:5032/api/images";
+        public ObservableCollection<ImageContracts.Image> ImagesCollection { get; private set; }
+        private const int MaxRetries = 3;
+
+        public WindowDatabasexaml()
         {
-            ImagesData = new ObservableCollection<Image>();
-
-            using (var DB = new DataBase())
-            {
-                foreach (var image in DB.Images)
-                {
-                    ImagesData.Add(image);
-                }
-            }
-
+            ImagesCollection = new ObservableCollection<ImageContracts.Image>();
+            GetAllImages();
             InitializeComponent();
             DataContext = this;
         }
 
-        private void Delete_Image_Click(object sender, RoutedEventArgs e)
+        public async void GetAllImages()
         {
-            try
+            int requestCount = 0;
+            HttpClient client = new HttpClient();
+            var taskGetAllImages = await client.GetAsync(url);
+            requestCount++;
+            while (requestCount < MaxRetries && taskGetAllImages.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                var image = ImagesData[Images_Data.SelectedIndex];
-                using var DB = new DataBase();
-                var del_image = DB.Images.Where(x => x.Id == image.Id).Include(x => x.Details).First();
-                if (del_image is null)
-                {
-                    return;
-                }
-                else
-                {
-                    DB.Details.Remove(del_image.Details);
-                    DB.Images.Remove(del_image);
-                    DB.SaveChanges();
-                    ImagesData.Remove(image);
-                }
-               
+                taskGetAllImages = await client.GetAsync(url);
+                requestCount++;
             }
-            catch (Exception e1)
+            if (taskGetAllImages.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                MessageBox.Show(e1.Message);
+                throw new Exception($"Не получается получить изображения по запросу \"{url}\" в {requestCount} попытках");
             }
+            var id_list = JsonConvert.DeserializeObject<List<int>>(taskGetAllImages.Content.ReadAsStringAsync().Result);
+
+
+            for (int i = 0; i < id_list.Count; i++)
+            {
+                requestCount = 0;
+                var taskGetImage = await client.GetAsync($"{url}/{id_list[i]}");
+                requestCount++;
+                while (requestCount < MaxRetries && taskGetImage.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    taskGetImage = await client.GetAsync($"{url}/{id_list[i]}");
+                    requestCount++;
+                }
+                if (taskGetImage.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    throw new Exception($"Не получается получить изображения по запросу \"{url}\" в {requestCount} попытках");
+                }
+                var image = JsonConvert.DeserializeObject<ImageContracts.Image>(taskGetImage.Content.ReadAsStringAsync().Result);
+                ImagesCollection.Add(image);
+            }
+
+        }
+        private async void Button_Delete_Image(object sender, RoutedEventArgs e)
+        {
+            HttpClient client = new HttpClient();
+            var image = ImagesCollection[ImagesCollectionListBox.SelectedIndex];
+            int requestCount = 0;
+            var task = await client.DeleteAsync($"{url}/{image.Id}");
+            requestCount++;
+            while (requestCount < MaxRetries && task.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                task = await client.DeleteAsync($"{url}/{image.Id}");
+                requestCount++;
+            }
+            if (task.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                throw new Exception($"Не получается отправить запрос по \"{url}\" в {requestCount} попытках");
+            }
+            var result = JsonConvert.DeserializeObject<int>(task.Content.ReadAsStringAsync().Result);
+            if (result == 1)
+            {
+                MessageBox.Show("Удаление прошло успешно!");
+                ImagesCollection.Remove(image);
+            }
+            else
+            {
+                MessageBox.Show("Удаление завершилось неудачей, пожалуйста, повторите попытку позже!");
+            }
+
         }
     }
 }
