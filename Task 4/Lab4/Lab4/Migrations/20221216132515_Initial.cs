@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace WpfLab3.Migrations
+namespace Server.Migrations
 {
     /// <inheritdoc />
     public partial class Initial : Migration
@@ -16,7 +16,7 @@ namespace WpfLab3.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    Data = table.Column<byte[]>(type: "BLOB", nullable: true)
+                    Data = table.Column<byte[]>(type: "BLOB", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -29,10 +29,10 @@ namespace WpfLab3.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    Name = table.Column<string>(type: "TEXT", nullable: true),
-                    Hash = table.Column<string>(type: "TEXT", nullable: true),
-                    Embedding = table.Column<byte[]>(type: "BLOB", nullable: true),
-                    DetailsId = table.Column<int>(type: "INTEGER", nullable: true)
+                    Name = table.Column<string>(type: "TEXT", nullable: false),
+                    Hash = table.Column<string>(type: "TEXT", nullable: false),
+                    Embedding = table.Column<byte[]>(type: "BLOB", nullable: false),
+                    DetailsId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -41,7 +41,8 @@ namespace WpfLab3.Migrations
                         name: "FK_Images_Details_DetailsId",
                         column: x => x.DetailsId,
                         principalTable: "Details",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
